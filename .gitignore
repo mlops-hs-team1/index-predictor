@@ -1,0 +1,10 @@
+.conda/
+data/
+.cache/
+.jupyter/
+.local/
+.ipython/
+.sagemaker_sql_editor_api_cache/
+.virtual_documents/
+.npm/
+.ipynb_checkpoints/
