@@ -12,3 +12,4 @@ venv/
 __pycache__/
 lstm_model.pth
 .DS_Store
+.ssh/
