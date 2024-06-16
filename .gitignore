@@ -8,3 +8,4 @@ data/
 .virtual_documents/
 .npm/
 .ipynb_checkpoints/
+venv/
