@@ -85,3 +85,5 @@ if __name__ == "__main__":
         )
         data = collector.get_data()
         collector.store_data(data)
+
+    print("Data collection completed")
