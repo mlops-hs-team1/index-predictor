@@ -10,3 +10,4 @@ data/
 .ipynb_checkpoints/
 venv/
 lstm_model.pth
+.DS_Store
