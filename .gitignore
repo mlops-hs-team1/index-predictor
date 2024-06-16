@@ -9,3 +9,4 @@ data/
 .npm/
 .ipynb_checkpoints/
 venv/
+lstm_model.pth
