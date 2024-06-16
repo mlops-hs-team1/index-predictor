@@ -1,5 +1,5 @@
 .conda/
-data/
+/data/
 .cache/
 .jupyter/
 .local/
@@ -9,5 +9,6 @@ data/
 .npm/
 .ipynb_checkpoints/
 venv/
+__pycache__/
 lstm_model.pth
 .DS_Store
