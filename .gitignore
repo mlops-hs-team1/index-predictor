@@ -15,3 +15,4 @@ lstm_model.pth
 .ssh/
 .gitconfig
 xgboost_model*
+model_xgb_v*
