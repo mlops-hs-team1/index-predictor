@@ -18,12 +18,14 @@ class DataCollector:
         days: int = 30,
         ticker: str = "^GSPC",
         num_rows: Optional[int] = None,
+        outputpath: str = "/opt/ml/processing/output/",
     ):
         self.data_folder = "data/raw"
         self.filename = filename
         self.days = days
         self.ticker = ticker
         self.num_rows = num_rows
+        self.outputpath = outputpath
 
     def get_data(self) -> pd.DataFrame:
         full_data = pd.DataFrame()
@@ -49,14 +51,15 @@ class DataCollector:
         return full_data
 
     def store_data(self, data: pd.DataFrame):
-        os.makedirs(self.data_folder, exist_ok=True)
-        data.to_csv(f"{self.data_folder}/{self.filename}")
+        folder = os.path.join(self.outputpath, self.data_folder)
+        os.makedirs(folder, exist_ok=True)
+        path = os.path.join(folder, self.filename)
+        data.to_csv(path)
 
-        abs_path = os.path.abspath(f"{self.data_folder}/{self.filename}")
-        print(f"Data stored at {abs_path}")
+        print(f"Data stored at {path}")
 
 
-if __name__ == "__main__":
+def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--mode",
@@ -70,8 +73,18 @@ if __name__ == "__main__":
         default=31,
         help="Number of data points to collect",
     )
+    parser.add_argument(
+        "--outputpath",
+        type=str,
+        default="/opt/ml/processing/output/",
+    )
 
     args = parser.parse_args()
+    return args
+
+
+if __name__ == "__main__":
+    args = parse_args()
 
     if args.mode not in ["all", "train-val-test", "inference"]:
         raise ValueError("Invalid mode")
@@ -81,6 +94,7 @@ if __name__ == "__main__":
             days=30,
             ticker="^GSPC",
             num_rows=None,
+            outputpath=args.outputpath,
         )
         data = collector.get_data()
         collector.store_data(data)
@@ -90,6 +104,7 @@ if __name__ == "__main__":
             days=3,
             ticker="^GSPC",
             num_rows=args.datapoints,
+            outputpath=args.outputpath,
         )
         data = collector.get_data()
         collector.store_data(data)
