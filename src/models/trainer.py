@@ -17,14 +17,14 @@ class ModelTrainer:
     def __init__(
         self,
         input_path,
-        version,
+        data_version,
         target_column,
         model_output_path,
         num_trials,
     ):
-        self.train_data_path = os.path.join(input_path, f"train-{version}.csv")
+        self.train_data_path = os.path.join(input_path, f"train-{data_version}.csv")
         self.validation_data_path = os.path.join(
-            input_path, f"validation-{version}.csv"
+            input_path, f"validation-{data_version}.csv"
         )
         self.target_column = target_column
         self.model_output_path = model_output_path
@@ -138,7 +138,7 @@ if __name__ == "__main__":
         help="Path to the input data",
     )
     parser.add_argument(
-        "--version",
+        "--data-version",
         type=str,
         required=True,
         help="Version of the input data",
@@ -163,7 +163,7 @@ if __name__ == "__main__":
 
     trainer = ModelTrainer(
         input_path=args.input_path,
-        version=args.version,
+        data_version=args.data_version,
         target_column=args.target_column,
         model_output_path=args.model_output_path,
         num_trials=args.num_trials,
