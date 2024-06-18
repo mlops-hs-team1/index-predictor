@@ -14,5 +14,4 @@ lstm_model.pth
 .DS_Store
 .ssh/
 .gitconfig
-xgboost_model*
-model_xgb_v*
+/models/
