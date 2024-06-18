@@ -18,6 +18,7 @@ class DataProcessor:
         df["DayOfWeek"] = pd.to_datetime(df["Datetime"]).dt.dayofweek
         df["Hour"] = pd.to_datetime(df["Datetime"]).dt.hour
         df["Minute"] = pd.to_datetime(df["Datetime"]).dt.minute
+        df.drop(columns=["Datetime"], inplace=True)
         return df
 
     def one_hot_encode_day_of_week(self, df, max_day_of_week=4):
