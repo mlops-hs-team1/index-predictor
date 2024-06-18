@@ -111,11 +111,6 @@ class ModelTrainer:
     def save_model(self):
         os.makedirs(os.path.dirname(self.model_output_path), exist_ok=True)
         self.bst.save_model(self.model_output_path + ".xgb")
-        with tarfile.open(self.model_output_path + ".tar.gz", "w:gz") as tar:
-            tar.add(
-                self.model_output_path + ".xgb",
-                arcname=os.path.basename(self.model_output_path + ".xgb"),
-            )
         print(f"Model saved to {self.model_output_path}")
 
     def run(self):
