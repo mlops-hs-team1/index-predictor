@@ -1,3 +1,8 @@
+import subprocess
+import sys
+
+subprocess.check_call([sys.executable, "-m", "pip", "install", "yfinance"])
+
 import yfinance as yf
 import pandas as pd
 from datetime import datetime
