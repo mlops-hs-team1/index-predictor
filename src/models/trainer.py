@@ -132,31 +132,31 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--input-path",
+        "--input_path",
         type=str,
         required=True,
         help="Path to the input data",
     )
     parser.add_argument(
-        "--data-version",
+        "--data_version",
         type=str,
         required=True,
         help="Version of the input data",
     )
     parser.add_argument(
-        "--target-column",
+        "--target_column",
         type=str,
         required=True,
         help="Name of the target column",
     )
     parser.add_argument(
-        "--model-output-path",
+        "--model_output_path",
         type=str,
         required=True,
         help="Path to save the trained model",
     )
     parser.add_argument(
-        "--num-trials", type=int, required=True, help="Number of Optuna trials"
+        "--num_trials", type=int, required=True, help="Number of Optuna trials"
     )
 
     args = parser.parse_args()
