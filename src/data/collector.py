@@ -47,6 +47,9 @@ class DataCollector:
         os.makedirs(self.data_folder, exist_ok=True)
         data.to_csv(f"{self.data_folder}/{self.filename}")
 
+        abs_path = os.path.abspath(f"{self.data_folder}/{self.filename}")
+        print(f"Data stored at {abs_path}")
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
