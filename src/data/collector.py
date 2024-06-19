@@ -95,7 +95,7 @@ if __name__ == "__main__":
         raise ValueError("Invalid mode")
     if args.mode in ["all", "train-val-test"]:
         collector = DataCollector(
-            filename=f"data-{args.version}.csv",
+            filename=f"data.csv",
             days=30,
             ticker="^GSPC",
             num_rows=None,
@@ -105,7 +105,7 @@ if __name__ == "__main__":
         collector.store_data(data)
     if args.mode in ["all", "inference"]:
         collector = DataCollector(
-            filename=f"data-inference-{args.version}.csv",
+            filename=f"data-inference.csv",
             days=3,
             ticker="^GSPC",
             num_rows=args.datapoints,

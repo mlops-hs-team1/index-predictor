@@ -22,9 +22,9 @@ class ModelTrainer:
         model_output_path,
         num_trials,
     ):
-        self.train_data_path = os.path.join(input_path, f"train-{data_version}.csv")
+        self.train_data_path = os.path.join(input_path, f"train.csv")
         self.validation_data_path = os.path.join(
-            input_path, f"validation-{data_version}.csv"
+            input_path, f"validation.csv"
         )
         self.target_column = target_column
         self.model_output_path = model_output_path

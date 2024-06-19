@@ -5,6 +5,7 @@ import numpy as np
 import os
 import tarfile
 import logging
+import json
 from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
 
 
@@ -17,7 +18,7 @@ class ModelEvaluator:
         model_path,
         output_path,
     ):
-        self.test_data_path = os.path.join(input_path, f"test-{data_version}.csv")
+        self.test_data_path = os.path.join(input_path, f"test.csv")
         self.target_column = target_column
         self.model_path = model_path
         self.output_path = output_path
@@ -78,16 +79,20 @@ class ModelEvaluator:
 
     def save_evaluation(self):
         os.makedirs(self.output_path, exist_ok=True)
-        evaluation_report = os.path.join(self.output_path, "evaluation_report.txt")
-        with open(evaluation_report, "w") as f:
-            f.write(f"\n\nCumulative Reward: {self.cumulative_reward}\n")
-            f.write(f"Cumulative Return: {self.cumulative_return}\n")
-            f.write(f"Test Accuracy: {self.test_accuracy*100:.2f}%\n")
-            f.write("Confusion Matrix:\n")
-            f.write(str(self.conf_matrix))
-            f.write("\n\nClassification Report:\n")
-            f.write(self.class_report)
-        print(f"Evaluation report saved to {evaluation_report}")
+        evaluation_report_path = os.path.join(self.output_path, "evaluation_report.json")
+        
+        evaluation_report = {
+            "Cumulative Reward": self.cumulative_reward,
+            "Cumulative Return": self.cumulative_return,
+            "Test Accuracy": self.test_accuracy * 100,
+            "Confusion Matrix": self.conf_matrix.tolist(),
+            "Classification Report": self.class_report
+        }
+    
+        with open(evaluation_report_path, "w") as f:
+            json.dump(evaluation_report, f, indent=4)
+        
+        print(f"Evaluation report saved to {evaluation_report_path}")
 
     def run(self):
         self.load_data()

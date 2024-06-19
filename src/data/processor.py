@@ -53,7 +53,7 @@ class DataProcessor:
 
     def store_data(self, df, output_path, type, version):
         os.makedirs(args.output_path, exist_ok=True)
-        output_path = os.path.join(output_path, f"{type}-{version}.csv")
+        output_path = os.path.join(output_path, f"{type}.csv")
         df.to_csv(output_path, index=False)
         print(f"{type} data saved at {output_path}")
 
