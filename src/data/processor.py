@@ -1,6 +1,9 @@
 import argparse
 import pandas as pd
 import os
+import json
+import sagemaker
+from sagemaker.feature_store.feature_group import FeatureGroup
 
 
 class DataProcessor:
@@ -11,6 +14,10 @@ class DataProcessor:
         df = pd.read_csv(raw_data_filename)
         return df
 
+    def drop_columns(self, df, columns=["Adj Close"]):
+        df.drop(columns=columns, inplace=True)
+        return df
+
     def sort_by_datetime(self, df):
         return df.sort_values(by=["Datetime"])
 
@@ -18,7 +25,6 @@ class DataProcessor:
         df["DayOfWeek"] = pd.to_datetime(df["Datetime"]).dt.dayofweek
         df["Hour"] = pd.to_datetime(df["Datetime"]).dt.hour
         df["Minute"] = pd.to_datetime(df["Datetime"]).dt.minute
-        df.drop(columns=["Datetime"], inplace=True)
         return df
 
     def one_hot_encode_day_of_week(self, df, max_day_of_week=4):
@@ -32,6 +38,11 @@ class DataProcessor:
         validation_df = df.iloc[-validation_size - test_size : -test_size]
         test_df = df.iloc[-test_size:]
         return train_df, validation_df, test_df
+
+    def convert_datetime_to_iso_8601(self, df):
+        df["Datetime"] = pd.to_datetime(df["Datetime"])
+        df["Datetime"] = df["Datetime"].dt.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
+        return df
 
     def prepare_data(self, df, lag):
         df = df.copy()
@@ -51,11 +62,26 @@ class DataProcessor:
         df.dropna(inplace=True)
         return df
 
-    def store_data(self, df, output_path, type, version):
-        os.makedirs(args.output_path, exist_ok=True)
-        output_path = os.path.join(output_path, f"{type}.csv")
-        df.to_csv(output_path, index=False)
-        print(f"{type} data saved at {output_path}")
+    def convert_col_name(c):
+        return c.lower().replace(".", "_").replace("-", "_").rstrip("_")
+
+    def ingest_data(self, df, feature_group_name):
+        sagemaker_session = sagemaker.Session()
+        feature_group = FeatureGroup(
+            name=feature_group_name, sagemaker_session=sagemaker_session
+        )
+        feature_group.ingest(data_frame=df, max_workers=3, wait=True)
+        print("Data ingested to feature store")
+
+    def store_dataset_sizes(self, train_size, validation_size, test_size, output_path):
+        dataset_sizes = {
+            "train_size": train_size,
+            "validation_size": validation_size,
+            "test_size": test_size,
+        }
+        with open(os.path.join(output_path, "dataset_sizes.json"), "w") as f:
+            json.dump(dataset_sizes, f)
+        print(f"Dataset sizes saved at {output_path}")
 
 
 def parse_args():
@@ -78,6 +104,12 @@ def parse_args():
         required=True,
         help="Version of the dataset.",
     )
+    parser.add_argument(
+        "--feature_group_name",
+        type=str,
+        required=True,
+        help="Name of the feature group in Feature Store.",
+    )
     return parser.parse_args()
 
 
@@ -88,9 +120,13 @@ if __name__ == "__main__":
 
     df = processor.load_data(args.raw_data_filename)
 
+    df = processor.drop_columns(df)
+
     df = processor.sort_by_datetime(df)
     df = processor.extract_date_features(df)
     df = processor.one_hot_encode_day_of_week(df)
+
+    df = processor.convert_datetime_to_iso_8601(df)
 
     train_df, validation_df, test_df = processor.split_data(df)
 
@@ -99,8 +135,22 @@ if __name__ == "__main__":
     validation_df = processor.prepare_data(validation_df, lag)
     test_df = processor.prepare_data(test_df, lag)
 
-    processor.store_data(train_df, args.output_path, "train", args.version)
-    processor.store_data(validation_df, args.output_path, "validation", args.version)
-    processor.store_data(test_df, args.output_path, "test", args.version)
+    train_df["type"] = ["train"] * train_df.shape[0]
+    validation_df["type"] = ["validation"] * validation_df.shape[0]
+    test_df["type"] = ["test"] * test_df.shape[0]
+
+    merged_df = pd.concat([train_df, validation_df, test_df], axis=0)
+    merged_df["version"] = [args.version] * merged_df.shape[0]
+
+    merged_df = merged_df.rename(columns=processor.convert_col_name)
+
+    processor.ingest_data(merged_df, args.feature_group_name)
+
+    processor.store_dataset_sizes(
+        train_size=train_df.shape[0],
+        validation_size=validation_df.shape[0],
+        test_size=test_df.shape[0],
+        output_path=args.output_path,
+    )
 
     print(f"Data processing completed.")
