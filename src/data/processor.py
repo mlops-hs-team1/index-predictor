@@ -1,9 +1,15 @@
+import subprocess
+import sys
+
+subprocess.check_call([sys.executable, "-m", "pip", "install", "sagemaker", "boto3"])
+
 import argparse
 import pandas as pd
 import os
 import json
 
 import sagemaker
+import boto3
 from sagemaker.feature_store.feature_group import FeatureGroup
 
 
@@ -66,8 +72,8 @@ class DataProcessor:
     def convert_col_name(self, c):
         return c.lower().replace(".", "_").replace("-", "_").rstrip("_")
 
-    def ingest_data(self, df, feature_group_name):
-        sagemaker_session = sagemaker.Session()
+    def ingest_data(self, df, feature_group_name, region):
+        sagemaker_session = sagemaker.Session(boto3.Session(region_name=region))
         feature_group = FeatureGroup(
             name=feature_group_name, sagemaker_session=sagemaker_session
         )
@@ -117,6 +123,12 @@ def parse_args():
         required=False,
         help="Name of the feature group in Feature Store.",
     )
+    parser.add_argument(
+        "--region",
+        type=str,
+        required=False,
+        help="AWS region of Sagemaker Session.",
+    )
     return parser.parse_args()
 
 
@@ -158,7 +170,7 @@ if __name__ == "__main__":
             raise ValueError(
                 "Please provide the name of the feature group in Feature Store."
             )
-        processor.ingest_data(merged_df, args.feature_group_name)
+        processor.ingest_data(merged_df, args.feature_group_name, args.region)
 
     processor.store_dataset_sizes(
         train_size=train_df.shape[0],
