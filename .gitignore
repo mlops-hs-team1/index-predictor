@@ -15,3 +15,6 @@ lstm_model.pth
 .ssh/
 .gitconfig
 /models/
+pipeline_notebooks/requirements.txt
+pipeline_notebooks/config.yaml
+.config/sagemaker/config.yaml
