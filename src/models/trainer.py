@@ -49,8 +49,8 @@ class ModelTrainer:
 
         if self.mode == "feature_store":
             if (
-                not self.feature_group_name
-                or not self.bucket_name
+                not feature_group_name
+                or not bucket_name
                 or not dataset_sizes_path
                 or not region
             ):
@@ -290,6 +290,12 @@ if __name__ == "__main__":
         required=False,
         help="AWS region of Sagemaker Session.",
     )
+    parser.add_argument(
+        "--bucket_name",
+        type=str,
+        required=False,
+        help="S3 bucket name (used in feature store mode)",
+    )
 
     args = parser.parse_args()
 
@@ -297,6 +303,7 @@ if __name__ == "__main__":
         mode=args.mode,
         input_path=args.input_path,
         dataset_sizes_path=args.dataset_sizes_path,
+        bucket_name=args.bucket_name,
         data_version=args.data_version,
         target_column=args.target_column,
         columns_to_drop=args.columns_to_drop,
