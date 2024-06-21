@@ -2,6 +2,7 @@ import argparse
 import pandas as pd
 import os
 import json
+
 import sagemaker
 from sagemaker.feature_store.feature_group import FeatureGroup
 
@@ -62,7 +63,7 @@ class DataProcessor:
         df.dropna(inplace=True)
         return df
 
-    def convert_col_name(c):
+    def convert_col_name(self, c):
         return c.lower().replace(".", "_").replace("-", "_").rstrip("_")
 
     def ingest_data(self, df, feature_group_name):
@@ -87,6 +88,12 @@ class DataProcessor:
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
+        "--mode",
+        type=str,
+        required=True,
+        help="Mode of the script. Possible values: 'feature_store', 'local'.",
+    )
+    parser.add_argument(
         "--raw_data_filename",
         type=str,
         required=True,
@@ -107,7 +114,7 @@ def parse_args():
     parser.add_argument(
         "--feature_group_name",
         type=str,
-        required=True,
+        required=False,
         help="Name of the feature group in Feature Store.",
     )
     return parser.parse_args()
@@ -144,7 +151,14 @@ if __name__ == "__main__":
 
     merged_df = merged_df.rename(columns=processor.convert_col_name)
 
-    processor.ingest_data(merged_df, args.feature_group_name)
+    if args.mode == "local":
+        merged_df.to_csv(os.path.join(args.output_path, "data.csv"), index=False)
+    elif args.mode == "feature_store":
+        if not args.feature_group_name:
+            raise ValueError(
+                "Please provide the name of the feature group in Feature Store."
+            )
+        processor.ingest_data(merged_df, args.feature_group_name)
 
     processor.store_dataset_sizes(
         train_size=train_df.shape[0],
