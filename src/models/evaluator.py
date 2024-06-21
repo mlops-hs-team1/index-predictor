@@ -1,3 +1,10 @@
+import subprocess
+import sys
+
+subprocess.check_call(
+    [sys.executable, "-m", "pip", "install", "optuna", "sagemaker", "boto3"]
+)
+
 import argparse
 import pandas as pd
 import xgboost as xgb
@@ -7,28 +14,110 @@ import tarfile
 import logging
 import json
 from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
+import boto3
+import time
+
+import sagemaker
+from sagemaker.feature_store.feature_group import FeatureGroup
 
 
 class ModelEvaluator:
     def __init__(
         self,
+        mode,
         input_path,
+        dataset_sizes_path,
         data_version,
         target_column,
+        columns_to_drop,
         model_path,
         output_path,
+        feature_group_name,
+        region,
+        bucket_name,
     ):
-        self.test_data_path = os.path.join(input_path, f"test.csv")
+        self.mode = mode
+        self.input_path = input_path
+        self.data_version = data_version
         self.target_column = target_column
+        self.columns_to_drop = columns_to_drop.split(",") if columns_to_drop else []
+        self.columns_to_drop.append(target_column)
         self.model_path = model_path
         self.output_path = output_path
 
+        with open(dataset_sizes_path, "r") as f:
+            self.dataset_sizes = json.load(f)
+
+        if self.mode == "feature_store":
+            if not feature_group_name or not bucket_name or not region:
+                raise ValueError(
+                    "feature_group_name, bucket_name and region are required in feature_store mode"
+                )
+            sagemaker_session = sagemaker.Session(boto3.Session(region_name=region))
+            self.feature_group = FeatureGroup(
+                name=feature_group_name, sagemaker_session=sagemaker_session
+            )
+            self.bucket_name = bucket_name
+
     def load_data(self):
-        test_df = pd.read_csv(self.test_data_path)
-        self.X_test = test_df.drop(columns=[self.target_column])
+        if self.mode == "feature_store":
+            test_df = self._load_data_from_feature_store()
+        elif self.mode == "local":
+            test_df = pd.read_csv(os.path.join(self.input_path, "test.csv"))
+
+        self.X_test = test_df.drop(columns=self.columns_to_drop)
         self.y_test = test_df[self.target_column]
-        self.close_prices = test_df["Close"].values
+        self.close_prices = test_df["close"].values
         self.dtest = xgb.DMatrix(self.X_test, label=self.y_test)
+
+    def _get_record_count(self, record_type):
+        fs_query = self.feature_group.athena_query()
+        query_string = f"""
+            SELECT COUNT(*) 
+            FROM "{fs_query.table_name}" 
+            WHERE version = '{self.data_version}' AND type = '{record_type}'
+        """
+        output_location = f"s3://{self.bucket_name}/tmp/offline-store/query_results/"
+
+        fs_query.run(query_string=query_string, output_location=output_location)
+        fs_query.wait()
+        fs_df = fs_query.as_dataframe()
+
+        return fs_df.iat[0, 0]
+
+    def _wait_until_ingestion_complete(self):
+        test_count = self._get_record_count("test")
+
+        while test_count < self.dataset_sizes["test_size"]:
+            print("Waiting for ingestion to complete...")
+            time.sleep(30)
+            test_count = self._get_record_count("test")
+
+    def _load_data_from_feature_store(self):
+        sagemaker_session = sagemaker.Session(boto3.Session(region_name=self.region))
+        self.feature_group = FeatureGroup(
+            name=self.feature_group_name, sagemaker_session=sagemaker_session
+        )
+
+        self._wait_until_ingestion_complete()
+
+        fs_query = self.feature_group.athena_query()
+
+        query_string = f"""
+            SELECT *
+            FROM "{fs_query.table_name}"
+            WHERE version = '{self.data_version}' AND type = 'test'
+        """
+
+        output_location = f"s3://{self.bucket_name}/tmp/offline-store/query_results/"
+
+        fs_query.run(
+            query_string=query_string,
+            output_location=f"{output_location}/test",
+        )
+
+        fs_query.wait()
+        return fs_query.as_dataframe()
 
     def load_model(self):
         tarfile_path = self.model_path + ".tar.gz"
@@ -79,19 +168,21 @@ class ModelEvaluator:
 
     def save_evaluation(self):
         os.makedirs(self.output_path, exist_ok=True)
-        evaluation_report_path = os.path.join(self.output_path, "evaluation_report.json")
-        
+        evaluation_report_path = os.path.join(
+            self.output_path, "evaluation_report.json"
+        )
+
         evaluation_report = {
             "Cumulative Reward": self.cumulative_reward,
             "Cumulative Return": self.cumulative_return,
             "Test Accuracy": self.test_accuracy * 100,
             "Confusion Matrix": self.conf_matrix.tolist(),
-            "Classification Report": self.class_report
+            "Classification Report": self.class_report,
         }
-    
+
         with open(evaluation_report_path, "w") as f:
             json.dump(evaluation_report, f, indent=4)
-        
+
         print(f"Evaluation report saved to {evaluation_report_path}")
 
     def run(self):
@@ -107,10 +198,22 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--input_path",
+        "--mode",
         type=str,
         required=True,
-        help="Path to the input test data",
+        help="Mode of the script. Possible values: 'feature_store', 'local'.",
+    )
+    parser.add_argument(
+        "--input_path",
+        type=str,
+        required=False,
+        help="Path to the input test data (used in local mode)",
+    )
+    parser.add_argument(
+        "--dataset_sizes_path",
+        type=str,
+        required=False,
+        help="Path to the json file containing dataset sizes (used in feature store mode)",
     )
     parser.add_argument(
         "--data_version",
@@ -125,6 +228,12 @@ if __name__ == "__main__":
         help="Name of the target column",
     )
     parser.add_argument(
+        "--columns_to_drop",
+        type=str,
+        required=False,
+        help="Columns to drop from the input data, separated by commas",
+    )
+    parser.add_argument(
         "--model_path",
         type=str,
         required=True,
@@ -136,15 +245,39 @@ if __name__ == "__main__":
         required=True,
         help="Path to save the evaluation results",
     )
+    parser.add_argument(
+        "--feature_group_name",
+        type=str,
+        required=False,
+        help="Name of the feature group in Feature Store.",
+    )
+    parser.add_argument(
+        "--region",
+        type=str,
+        required=False,
+        help="AWS region of Sagemaker Session.",
+    )
+    parser.add_argument(
+        "--bucket_name",
+        type=str,
+        required=False,
+        help="S3 bucket name (used in feature store mode)",
+    )
 
     args = parser.parse_args()
 
     evaluator = ModelEvaluator(
+        mode=args.mode,
         input_path=args.input_path,
+        dataset_sizes_path=args.dataset_sizes_path,
         data_version=args.data_version,
         target_column=args.target_column,
+        columns_to_drop=args.columns_to_drop,
         model_path=args.model_path,
         output_path=args.output_path,
+        feature_group_name=args.feature_group_name,
+        region=args.region,
+        bucket_name=args.bucket_name,
     )
 
     evaluator.run()
