@@ -94,11 +94,6 @@ class ModelEvaluator:
             test_count = self._get_record_count("test")
 
     def _load_data_from_feature_store(self):
-        sagemaker_session = sagemaker.Session(boto3.Session(region_name=self.region))
-        self.feature_group = FeatureGroup(
-            name=self.feature_group_name, sagemaker_session=sagemaker_session
-        )
-
         self._wait_until_ingestion_complete()
 
         fs_query = self.feature_group.athena_query()

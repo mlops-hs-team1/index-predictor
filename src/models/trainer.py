@@ -59,7 +59,7 @@ class ModelTrainer:
                     region are required in feature_store mode"
                 )
 
-            with open(self.dataset_sizes_path, "r") as f:
+            with open(dataset_sizes_path, "r") as f:
                 self.dataset_sizes = json.load(f)
         elif self.mode == "local":
             self.data_path = os.path.join(input_path, "data.csv")
@@ -101,8 +101,8 @@ class ModelTrainer:
         validation_count = self._get_record_count("validation")
 
         while (
-            train_count < self.dataset_sizes["train"]
-            or validation_count < self.dataset_sizes["validation"]
+            train_count < self.dataset_sizes["train_size"]
+            or validation_count < self.dataset_sizes["validation_size"]
         ):
             print("Waiting for ingestion to complete...")
             time.sleep(30)
