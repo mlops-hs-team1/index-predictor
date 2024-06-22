@@ -4,6 +4,9 @@ import sys
 subprocess.check_call(
     [sys.executable, "-m", "pip", "install", "optuna", "sagemaker", "boto3"]
 )
+subprocess.check_call(
+    [sys.executable, "-m", "pip", "install", "--verbose", "mlflow==2.13.2", "sagemaker-mlflow==0.1.0"]
+)
 
 import argparse
 import pandas as pd
@@ -16,7 +19,7 @@ import logging
 import json
 import time
 import boto3
-
+import mlflow
 import sagemaker
 from sagemaker.feature_store.feature_group import FeatureGroup
 
@@ -32,6 +35,8 @@ class ModelTrainer:
         model_output_path,
         num_trials,
         feature_group_name,
+        tracking_server_arn,
+        experiment_name,
         dataset_sizes_path=None,
         bucket_name=None,
         region=None,
@@ -46,6 +51,8 @@ class ModelTrainer:
         self.bucket_name = bucket_name
         self.data_version = data_version
         self.region = region
+        self.tracking_server_arn = tracking_server_arn
+        self.experiment_name = experiment_name
 
         if self.mode == "feature_store":
             if (
@@ -77,6 +84,11 @@ class ModelTrainer:
 
         self.y_validation = validation_df[self.target_column]
         self.X_validation = validation_df.drop(columns=self.columns_to_drop)
+
+        mlflow.log_params({
+            "train_dataset_size": len(self.y_train),
+            "validation_dataset_size": len(self.y_validation),
+        }, run_id=self.run_id)
 
         self.dtrain = xgb.DMatrix(self.X_train, label=self.y_train)
         self.dvalidation = xgb.DMatrix(self.X_validation, label=self.y_validation)
@@ -185,6 +197,11 @@ class ModelTrainer:
 
         self.best_params = study.best_params
 
+        mlflow.log_params({
+            "number_of_optuna_trials": self.num_trials,
+            "final_model_hyperparams": study.best_params,
+        }, run_id=self.run_id)
+
     def train_model(self):
         params = {
             "objective": "binary:logistic",
@@ -213,19 +230,32 @@ class ModelTrainer:
             self.y_validation, y_pred_validation_binary
         )
 
+        mlflow.log_metrics({
+            "validation_accuracy": validation_accuracy*100,
+        }, run_id=self.run_id)
+
         print(f"Validation Accuracy: {validation_accuracy*100:.2f}%")
 
     def save_model(self):
         os.makedirs(os.path.dirname(self.model_output_path), exist_ok=True)
-        self.bst.save_model(self.model_output_path + ".xgb")
-        print(f"Model saved to {self.model_output_path}")
+        self.bst.save_model(f"{self.model_output_path}/model.xgb")
+        mlflow.log_artifact(self.model_output_path, "model.xgb", run_id=self.run_id)
+        print(f"Model saved to {self.model_output_path}/model.xgb")
 
     def run(self):
-        self.load_data()
-        self.optimize_hyperparameters()
-        self.train_model()
-        self.print_validation_accuracy()
-        self.save_model()
+        mlflow.set_tracking_uri(self.tracking_server_arn)
+        mlflow.set_experiment(self.experiment_name)
+
+        with mlflow.start_run(run_name=sagemaker.utils.name_from_base(f"{self.experiment_name}-job")) as run:
+            self.run_id = run.info.run_id
+        
+            self.load_data()
+            self.optimize_hyperparameters()
+            self.train_model()
+            self.print_validation_accuracy()
+            self.save_model()
+    
+            mlflow.end_run(status='FINISHED')
 
 
 if __name__ == "__main__":
@@ -296,6 +326,18 @@ if __name__ == "__main__":
         required=False,
         help="S3 bucket name (used in feature store mode)",
     )
+    parser.add_argument(
+        "--tracking_server_arn",
+        type=str,
+        required=True,
+        help="MLFlow tracking server to track experiment",
+    )
+    parser.add_argument(
+        "--experiment_name",
+        type=str,
+        required=True,
+        help="MLFlow experiment name",
+    )
 
     args = parser.parse_args()
 
@@ -311,6 +353,8 @@ if __name__ == "__main__":
         num_trials=args.num_trials,
         feature_group_name=args.feature_group_name,
         region=args.region,
+        tracking_server_arn=args.tracking_server_arn,
+        experiment_name=args.experiment_name,
     )
 
     trainer.run()
