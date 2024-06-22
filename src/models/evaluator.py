@@ -4,6 +4,16 @@ import sys
 subprocess.check_call(
     [sys.executable, "-m", "pip", "install", "optuna", "sagemaker", "boto3"]
 )
+subprocess.check_call(
+    [
+        sys.executable,
+        "-m",
+        "pip",
+        "install",
+        "mlflow==2.13.2",
+        "sagemaker-mlflow==0.1.0",
+    ]
+)
 
 import argparse
 import pandas as pd
@@ -16,7 +26,7 @@ import json
 from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
 import boto3
 import time
-
+import mlflow
 import sagemaker
 from sagemaker.feature_store.feature_group import FeatureGroup
 
@@ -35,6 +45,8 @@ class ModelEvaluator:
         feature_group_name,
         region,
         bucket_name,
+        tracking_server_arn,
+        experiment_name,
     ):
         self.mode = mode
         self.input_path = input_path
@@ -44,6 +56,8 @@ class ModelEvaluator:
         self.columns_to_drop.append(target_column)
         self.model_path = model_path
         self.output_path = output_path
+        self.tracking_server_arn = tracking_server_arn
+        self.experiment_name = experiment_name
 
         with open(dataset_sizes_path, "r") as f:
             self.dataset_sizes = json.load(f)
@@ -67,6 +81,14 @@ class ModelEvaluator:
 
         self.X_test = test_df.drop(columns=self.columns_to_drop)
         self.y_test = test_df[self.target_column]
+
+        mlflow.log_params(
+            {
+                "test_dataset_size": len(self.y_test),
+            },
+            run_id=self.run_id,
+        )
+
         self.close_prices = test_df["close"].values
         self.dtest = xgb.DMatrix(self.X_test, label=self.y_test)
 
@@ -115,14 +137,15 @@ class ModelEvaluator:
         return fs_query.as_dataframe()
 
     def load_model(self):
-        tarfile_path = self.model_path + ".tar.gz"
-        model_file_path = self.model_path + ".xgb"
+        tarfile_path = f"{self.model_path}/model.tar.gz"
+        model_file_path = f"{self.model_path}/model.xgb"
 
         with tarfile.open(tarfile_path, "r:gz") as tar:
             tar.extractall(path=os.path.dirname(model_file_path))
 
         self.model = xgb.Booster()
         self.model.load_model(model_file_path)
+        mlflow.log_artifact(self.model_path, "model.xgb", run_id=self.run_id)
 
     def evaluate_model(self):
         y_pred_test = self.model.predict(self.dtest)
@@ -168,12 +191,20 @@ class ModelEvaluator:
         )
 
         evaluation_report = {
-            "Cumulative Reward": self.cumulative_reward,
-            "Cumulative Return": self.cumulative_return,
-            "Test Accuracy": self.test_accuracy * 100,
-            "Confusion Matrix": self.conf_matrix.tolist(),
-            "Classification Report": self.class_report,
+            "cumulative_reward": self.cumulative_reward,
+            "cumulative_return": self.cumulative_return,
+            "test_accuracy": self.test_accuracy * 100,
+            "confusion_matrix": self.conf_matrix.tolist(),
         }
+
+        mlflow.log_metrics(
+            {
+                "cumulative_reward": self.cumulative_reward,
+                "cumulative_return": self.cumulative_return,
+                "test_accuracy": self.test_accuracy,
+            },
+            run_id=self.run_id,
+        )
 
         with open(evaluation_report_path, "w") as f:
             json.dump(evaluation_report, f, indent=4)
@@ -181,10 +212,20 @@ class ModelEvaluator:
         print(f"Evaluation report saved to {evaluation_report_path}")
 
     def run(self):
-        self.load_data()
-        self.load_model()
-        self.evaluate_model()
-        self.save_evaluation()
+        mlflow.set_tracking_uri(self.tracking_server_arn)
+        mlflow.set_experiment(self.experiment_name)
+
+        with mlflow.start_run(
+            run_name=sagemaker.utils.name_from_base(f"{self.experiment_name}-job")
+        ) as run:
+            self.run_id = run.info.run_id
+
+            self.load_data()
+            self.load_model()
+            self.evaluate_model()
+            self.save_evaluation()
+
+            mlflow.end_run(status="FINISHED")
 
 
 if __name__ == "__main__":
@@ -258,6 +299,18 @@ if __name__ == "__main__":
         required=False,
         help="S3 bucket name (used in feature store mode)",
     )
+    parser.add_argument(
+        "--tracking_server_arn",
+        type=str,
+        required=True,
+        help="MLFlow tracking server to track experiment",
+    )
+    parser.add_argument(
+        "--experiment_name",
+        type=str,
+        required=True,
+        help="MLFlow experiment name",
+    )
 
     args = parser.parse_args()
 
@@ -273,6 +326,8 @@ if __name__ == "__main__":
         feature_group_name=args.feature_group_name,
         region=args.region,
         bucket_name=args.bucket_name,
+        tracking_server_arn=args.tracking_server_arn,
+        experiment_name=args.experiment_name,
     )
 
     evaluator.run()
