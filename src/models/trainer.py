@@ -5,7 +5,14 @@ subprocess.check_call(
     [sys.executable, "-m", "pip", "install", "optuna", "sagemaker", "boto3"]
 )
 subprocess.check_call(
-    [sys.executable, "-m", "pip", "install", "--verbose", "mlflow==2.13.2", "sagemaker-mlflow==0.1.0"]
+    [
+        sys.executable,
+        "-m",
+        "pip",
+        "install",
+        "mlflow==2.13.2",
+        "sagemaker-mlflow==0.1.0",
+    ]
 )
 
 import argparse
@@ -85,10 +92,13 @@ class ModelTrainer:
         self.y_validation = validation_df[self.target_column]
         self.X_validation = validation_df.drop(columns=self.columns_to_drop)
 
-        mlflow.log_params({
-            "train_dataset_size": len(self.y_train),
-            "validation_dataset_size": len(self.y_validation),
-        }, run_id=self.run_id)
+        mlflow.log_params(
+            {
+                "train_dataset_size": len(self.y_train),
+                "validation_dataset_size": len(self.y_validation),
+            },
+            run_id=self.run_id,
+        )
 
         self.dtrain = xgb.DMatrix(self.X_train, label=self.y_train)
         self.dvalidation = xgb.DMatrix(self.X_validation, label=self.y_validation)
@@ -197,10 +207,13 @@ class ModelTrainer:
 
         self.best_params = study.best_params
 
-        mlflow.log_params({
-            "number_of_optuna_trials": self.num_trials,
-            "final_model_hyperparams": study.best_params,
-        }, run_id=self.run_id)
+        mlflow.log_params(
+            {
+                "number_of_optuna_trials": self.num_trials,
+                "final_model_hyperparams": study.best_params,
+            },
+            run_id=self.run_id,
+        )
 
     def train_model(self):
         params = {
@@ -230,9 +243,12 @@ class ModelTrainer:
             self.y_validation, y_pred_validation_binary
         )
 
-        mlflow.log_metrics({
-            "validation_accuracy": validation_accuracy*100,
-        }, run_id=self.run_id)
+        mlflow.log_metrics(
+            {
+                "validation_accuracy": validation_accuracy * 100,
+            },
+            run_id=self.run_id,
+        )
 
         print(f"Validation Accuracy: {validation_accuracy*100:.2f}%")
 
@@ -246,16 +262,18 @@ class ModelTrainer:
         mlflow.set_tracking_uri(self.tracking_server_arn)
         mlflow.set_experiment(self.experiment_name)
 
-        with mlflow.start_run(run_name=sagemaker.utils.name_from_base(f"{self.experiment_name}-job")) as run:
+        with mlflow.start_run(
+            run_name=sagemaker.utils.name_from_base(f"{self.experiment_name}-job")
+        ) as run:
             self.run_id = run.info.run_id
-        
+
             self.load_data()
             self.optimize_hyperparameters()
             self.train_model()
             self.print_validation_accuracy()
             self.save_model()
-    
-            mlflow.end_run(status='FINISHED')
+
+            mlflow.end_run(status="FINISHED")
 
 
 if __name__ == "__main__":
