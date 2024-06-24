@@ -1,0 +1,11 @@
+{
+    "project": "index-predictor",
+    "bucket_name": "team1-index-predictor-bucket",
+    "feature_group_name": "index-predictor-feature-group-v7",
+    "tracking_server_arn": "arn:aws:sagemaker:eu-central-1:567821811420:mlflow-tracking-server/wildfire-mj",
+    "model_package_group_name": "index-predictor-model-group",
+    "skprocessor_framework_version": "1.0-1",
+    "sklearn_image_uri_version": "1.2-1",
+    "xgboost_container_version": "1.7-1",
+    "region": "eu-central-1"
+}
