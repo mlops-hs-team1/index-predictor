@@ -1,0 +1,29 @@
+Parameters:
+  ModelExecutionRoleArn:
+    Type: String
+    Description: Execution role used for deploying the model.
+
+
+Resources:
+  Model:
+    Type: AWS::SageMaker::Model
+    Properties:
+      Containers:
+         - ModelPackageName: index-predictor-model-group
+      ExecutionRoleArn: !Ref ModelExecutionRoleArn
+
+  EndpointConfig:
+    Type: AWS::SageMaker::EndpointConfig
+    Properties:
+      ProductionVariants:
+        - InitialInstanceCount: 1
+          InitialVariantWeight: 1.0
+          InstanceType: ml.m5.large
+          ModelName: !GetAtt Model.ModelName
+          VariantName: AllTraffic
+
+  Endpoint:
+    Type: AWS::SageMaker::Endpoint
+    Properties:
+      EndpointName: index-predictor-endpoint
+      EndpointConfigName: !GetAtt EndpointConfig.EndpointConfigName
