@@ -27,7 +27,7 @@ def get_processor_step(
     return ProcessingStep(
         name=f"{project}-processing",
         processor=processing_processor,
-        code="../src/data/processor.py",
+        code="src/data/processor.py",
         inputs=[
             ProcessingInput(
                 source=collection_step.properties.ProcessingOutputConfig.Outputs[

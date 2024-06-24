@@ -24,7 +24,7 @@ def get_trainer_step(
         instance_type=train_instance_type_param,
         output_path=Join(on="/", values=[f"s3://{bucket_name}", "models", version]),
         sagemaker_session=session,
-        entry_point="../src/models/trainer.py",
+        entry_point="src/models/trainer.py",
     )
 
     estimator.set_hyperparameters(

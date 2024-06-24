@@ -29,7 +29,7 @@ def get_evaluator_step(
     return ProcessingStep(
         name=f"{project}-evaluation",
         processor=evaluation_processor,
-        code="../src/models/evaluator.py",
+        code="src/models/evaluator.py",
         inputs=[
             ProcessingInput(
                 source=processing_step.properties.ProcessingOutputConfig.Outputs[

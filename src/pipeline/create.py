@@ -187,8 +187,8 @@ if __name__ == "__main__":
         xgboost_container=xgboost_container,
     )
 
-    pipeline_definition_str = pipeline.definition()
-    pipeline_definition_json = json.loads(pipeline_definition_str)
+    # pipeline_definition_str = pipeline.definition()
+    # pipeline_definition_json = json.loads(pipeline_definition_str)
     # with open("pipeline_definition.json", "w") as file:
     #     json.dump(pipeline_definition_json, file, indent=4)
 

@@ -24,7 +24,7 @@ def get_collector_step(
     return ProcessingStep(
         name=f"{project}-collection",
         processor=collection_processor,
-        code="../src/data/collector.py",
+        code="src/data/collector.py",
         inputs=[],
         outputs=[
             ProcessingOutput(
