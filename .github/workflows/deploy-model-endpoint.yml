@@ -1,12 +1,10 @@
-name: CI Pipeline
+name: Deploy Model Endpoint
 
 on:
-  push:
-    tags:
-      - '*'
+  workflow_dispatch:
 
 jobs:
-  build:
+  deploy:
     runs-on: self-hosted
 
     steps:
@@ -21,8 +19,5 @@ jobs:
     - name: Install dependencies
       run: pip install -r requirements.txt
 
-    - name: Run create script
-      run: python -m src.pipeline.create
-
-    - name: Run pipeline script
-      run: python -m src.pipeline.run
+    - name: Deploy Model Endpoint
+      run: python -m src.model_deployment.deploy
