@@ -18,13 +18,6 @@ jobs:
       with:
         python-version: '3.11'
 
-    - name: Assume SageMaker Role
-      id: assume-role
-      uses: aws-actions/configure-aws-credentials@v2
-      with:
-        role-to-assume: ${{ secrets.SAGEMAKER_ROLE_ARN }}
-        aws-region: eu-central-1
-
     - name: Install dependencies
       run: pip install -r requirements.txt
 
