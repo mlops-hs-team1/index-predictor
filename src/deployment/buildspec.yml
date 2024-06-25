@@ -12,7 +12,7 @@ phases:
       - echo "$SOURCE_MODEL_PACKAGE_GROUP_NAME"
       - echo "$ARTIFACT_BUCKET"
       - echo "$EXPORT_TEMPLATE_NAME"
-      - python src.deployment.build.py --model-execution-role "$MODEL_EXECUTION_ROLE_ARN"
+      - python -m src.deployment.build --model-execution-role "$MODEL_EXECUTION_ROLE_ARN"
         --model-package-group-name "$SOURCE_MODEL_PACKAGE_GROUP_NAME"
         --s3-bucket "$ARTIFACT_BUCKET"
       - aws cloudformation package --template-file endpoint-config-template.yml
