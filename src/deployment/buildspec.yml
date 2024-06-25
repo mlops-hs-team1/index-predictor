@@ -9,6 +9,10 @@ phases:
 
   build:
     commands:
+      - echo "MODEL_EXECUTION_ROLE_ARN: $MODEL_EXECUTION_ROLE_ARN"
+      - echo "SOURCE_MODEL_PACKAGE_GROUP_NAME: $SOURCE_MODEL_PACKAGE_GROUP_NAME"
+      - echo "ARTIFACT_BUCKET: $ARTIFACT_BUCKET"
+      - echo "EXPORT_TEMPLATE_NAME: $EXPORT_TEMPLATE_NAME"
       - python build.py --model-execution-role "$MODEL_EXECUTION_ROLE_ARN" --model-package-group-name "$SOURCE_MODEL_PACKAGE_GROUP_NAME" --s3-bucket "$ARTIFACT_BUCKET"
 
       # Package the infrastructure as code defined in endpoint-config-template.yml by using AWS CloudFormation.
