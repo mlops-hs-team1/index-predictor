@@ -18,3 +18,4 @@ lstm_model.pth
 pipeline_notebooks/requirements.txt
 pipeline_notebooks/config.yaml
 .config/sagemaker/config.yaml
+src/deployment/.env
