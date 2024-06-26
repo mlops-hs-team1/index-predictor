@@ -1,7 +1,9 @@
 import subprocess
 import sys
 
-subprocess.check_call([sys.executable, "-m", "pip", "install", "sagemaker", "boto3"])
+subprocess.check_call(
+    [sys.executable, "-m", "pip", "install", "-q", "sagemaker", "boto3"]
+)
 
 import argparse
 import pandas as pd

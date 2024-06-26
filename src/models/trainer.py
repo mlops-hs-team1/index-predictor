@@ -2,7 +2,7 @@ import subprocess
 import sys
 
 subprocess.check_call(
-    [sys.executable, "-m", "pip", "install", "optuna", "sagemaker", "boto3"]
+    [sys.executable, "-m", "pip", "-q", "install", "optuna", "sagemaker", "boto3"]
 )
 subprocess.check_call(
     [
