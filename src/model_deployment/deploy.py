@@ -4,6 +4,7 @@ import sagemaker
 import argparse
 from botocore.exceptions import ClientError
 from datetime import datetime
+from sagemaker.model_monitor import DataCaptureConfig
 
 
 def get_approved_package(model_package_group_name, sm_client, logger: logging.Logger):
@@ -46,10 +47,7 @@ def get_approved_package(model_package_group_name, sm_client, logger: logging.Lo
         raise Exception(error_message)
 
 
-def delete_existing_endpoint(
-    endpoint_name,
-    sm_client,
-):
+def delete_existing_endpoint(endpoint_name, sm_client):
     """Deletes the existing endpoint if it exists."""
     try:
         response = sm_client.describe_endpoint(EndpointName=endpoint_name)
@@ -74,6 +72,7 @@ def deploy_model_endpoint(
     instance_type,
     initial_instance_count,
     sm_client,
+    data_capture_s3_uri,
 ):
     """Deploys the model endpoint using the latest approved package."""
     try:
@@ -83,6 +82,15 @@ def deploy_model_endpoint(
             ExecutionRoleArn=sagemaker.get_execution_role(),
         )
         print(f"Model creation response: {create_model_response}")
+
+        data_capture_config = DataCaptureConfig(
+            enable_capture=True,
+            sampling_percentage=100,
+            destination_s3_uri=data_capture_s3_uri,
+            capture_options=["Input", "Output"],
+            csv_content_types=["text/csv"],
+            json_content_types=["application/jsonlines"],
+        )
 
         create_endpoint_config_response = sm_client.create_endpoint_config(
             EndpointConfigName=f"{endpoint_name}-{version}",
@@ -94,6 +102,7 @@ def deploy_model_endpoint(
                     "InitialInstanceCount": initial_instance_count,
                 },
             ],
+            DataCaptureConfig=data_capture_config._to_request_dict(),
         )
         print(f"Endpoint config creation response: {create_endpoint_config_response}")
 
@@ -122,7 +131,7 @@ def parse_args():
         "--version",
         type=str,
         default=time_now,
-        help="Version fo the model and the endpoint condig, default is time now.",
+        help="Version for the model and the endpoint config, default is time now.",
     )
     parser.add_argument(
         "--model-package-group-name",
@@ -148,6 +157,12 @@ def parse_args():
         default=1,
         help="Initial instance count for the endpoint (default: 1)",
     )
+    parser.add_argument(
+        "--data-capture-s3-uri",
+        type=str,
+        default="s3://team1-index-predictor-bucket/data-capture/",
+        help="S3 URI to store data capture files",
+    )
     return parser.parse_args()
 
 
@@ -159,7 +174,7 @@ if __name__ == "__main__":
 
     args = parse_args()
 
-    model_package_group_name = "index-predictor-model-group"
+    model_package_group_name = args.model_package_group_name
 
     model_package_arn = get_approved_package(
         model_package_group_name, sm_client, logger
@@ -174,4 +189,5 @@ if __name__ == "__main__":
         args.instance_type,
         args.initial_instance_count,
         sm_client,
+        args.data_capture_s3_uri,
     )
