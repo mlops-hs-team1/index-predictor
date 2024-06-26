@@ -1,7 +1,7 @@
 import subprocess
 import sys
 
-subprocess.check_call([sys.executable, "-m", "pip", "install", "yfinance"])
+subprocess.check_call([sys.executable, "-m", "pip", "install", "-q", "yfinance"])
 
 import yfinance as yf
 import pandas as pd
@@ -18,6 +18,7 @@ class DataCollector:
         days: int = 30,
         ticker: str = "^GSPC",
         num_rows: Optional[int] = None,
+        last_timestamp: Optional[str] = None,
         outputpath: str = "/opt/ml/processing/output/",
     ):
         self.data_folder = "data/raw"
@@ -26,11 +27,12 @@ class DataCollector:
         self.ticker = ticker
         self.num_rows = num_rows
         self.outputpath = outputpath
+        self.last_timestamp = pd.to_datetime(last_timestamp) if last_timestamp else None
 
     def get_data(self) -> pd.DataFrame:
         full_data = pd.DataFrame()
 
-        end = datetime.now()
+        end = datetime.now() if not self.last_timestamp else self.last_timestamp
         start = end - pd.Timedelta(days=self.days)
 
         while start < end:
@@ -74,6 +76,12 @@ def parse_args():
         help="Number of data points to collect",
     )
     parser.add_argument(
+        "--last_timestamp",
+        type=str,
+        default=None,
+        help="Last timestamp for data collection",
+    )
+    parser.add_argument(
         "--outputpath",
         type=str,
         default="/opt/ml/processing/output/",
@@ -99,6 +107,7 @@ if __name__ == "__main__":
             days=30,
             ticker="^GSPC",
             num_rows=None,
+            last_timestamp=args.last_timestamp,
             outputpath=args.outputpath,
         )
         data = collector.get_data()
@@ -109,6 +118,7 @@ if __name__ == "__main__":
             days=3,
             ticker="^GSPC",
             num_rows=args.datapoints,
+            last_timestamp=args.last_timestamp,
             outputpath=args.outputpath,
         )
         data = collector.get_data()
