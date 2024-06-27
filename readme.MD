@@ -6,7 +6,7 @@ Team project for MLOps course at Harbour.Space University on Jun 2024.
 
 ### Pipeline
 
-![alt text](pipeline.png)
+<img src="pipeline.png" alt="Pipeline Flowchart" style="max-width: 400px; height: auto;">
 
 After tagging on github, [A github action](.github/workflows/pipeline.yml) is triggered and the model pipeline starts in a self-hosted github runner (we hosted this runner in jupyter lab), the [pipeline](src/pipeline/create.py) consists of:
 
@@ -41,7 +41,80 @@ After tagging on github, [A github action](.github/workflows/pipeline.yml) is tr
 
 ### Model deployment
 
+<img src="deploy_action.png" alt="Deploy Action" style="max-width: 500px; height: auto;">
+
 After model is manually approved in the model registry, it is possible to trigger manually on GitHub, a [model deployment action](.github/workflows/deploy-model-endpoint.yml) that:
 
 * Automatically [deploys the model](src/model_deployment/deploy.py) to a sagemaker endpoint, for real-time inference
 * Enables data capture so that data sent to the model can be captured for monitoring purposes
+
+### MLFlow experiment tracking
+
+The following experiments were tracked to MLFlow:
+
+* Model Training in the pipeline
+* Model Evaluation in the pipeline
+* [Model Training Notebook](src/model_training.ipynb)
+
+From experiment, we keep track of:
+
+1. Parameters
+    * Sizes of train, validation, and test datasets
+    * Best hyper-parameters of chosen model
+2. Metrics
+    * Accuracy
+    * Cumulative return
+2. Artifacts
+    * Model
+
+Example experiments in MLFlow:
+
+<img src="train_exp.png" alt="Train Experiment Tracking" style="max-width: 640px; height: auto;">
+
+<img src="eval_exp.png" alt="Evaluation Experiment Tracking" style="max-width: 560px; height: auto;">
+
+### Other notebooks
+
+1. [Inference](src/inference.ipynb)
+
+    * Inference notebook that allows to get prediction from model endpoint
+    * Fetches last 30 available minutes of data from Yahoo Finance
+    * Processes the data in a synchronous way
+    * Calls the model endpoint to get the results
+
+2. [Feature Store](src/feature_store.ipynb)
+
+    * Notebook used to create the feature store and define the features
+    * Ingest example dataset
+
+3. [Model registry](src/model_registry.ipynb)
+
+    * Notebook used to create the model registry
+    * Upload example model
+
+4. [Model training](src/model_training.ipynb)
+
+    * Trains the following models:
+        * XGBoost
+        * Random Forest
+    * Compares results of:
+        * XGBoost
+        * Random Forest
+        * Moving Averages
+    * Tracks experiments
+    * Used to generate plots
+
+### Monitoring
+
+1. [Data Quality Monitoring](src/monitoring/data_quality_monitoring.ipynb)
+
+    * Runs baselining job with train dataset, to suggest constraints and compute metrics to check for data drifts
+    * Runs manual monitoring job
+    * Creates schedule for monitoring jobs
+    * Tries violations by data drift, by sending negative version of the dataset to the model endpoint.
+
+2. [Model Monitoring](src/monitoring/model_monitoring.ipynb)
+
+    * Adds predictions and probabilities to the test dataset to be used for baselining job
+    * Runs baselining job with test dataset and predictions, to compute metrics and suggest constraints
+    * Creates schedule for monitoring jobs
