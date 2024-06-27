@@ -21,3 +21,5 @@ pipeline_notebooks/config.yaml
 src/deployment/.env
 /.config/
 /actions-runner/
+/src/monitoring/tmp/
+/templates-test/
